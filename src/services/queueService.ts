@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { QueueEntry } from '../types/database';
+import { reorderQueueEntries } from './reordering';
 
 // Calculer la prochaine position pour une file
 export async function getNextPosition(queueId: string): Promise<number> {
@@ -33,6 +34,7 @@ export async function addToQueue(
     .select()
     .single();
   if (error) throw error;
+  await reorderQueueEntries(queueId);
   return data;
 }
 
@@ -40,6 +42,7 @@ export async function addToQueue(
 export async function leaveQueue(entryId: string) {
   await supabase.from('queue_entries').delete().eq('id', entryId);
   // Le reorder se fera via un trigger ou une fonction séparée
+  await reorderQueueEntries(queueId);
 }
 
 // Marquer comme servi (appelé par le gestionnaire)

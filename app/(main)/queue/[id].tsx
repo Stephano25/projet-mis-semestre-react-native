@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../src/store/authStore';
 import { addToQueue, leaveQueue } from '../../../src/services/queueService';
 import * as Location from 'expo-location';
 import { calculateDistance } from '../../../src/utils/distance';
+import { useQueueNotifications } from '../../../src/hooks/useQueueNotifications';
 
 export default function QueueDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +23,7 @@ export default function QueueDetail() {
     subscribeToEntries();
     checkProximity();
   }, [id]);
-
+  useQueueNotifications(myEntry, id);
   async function fetchQueue() {
     const { data } = await supabase.from('queues').select('*').eq('id', id).single();
     setQueue(data);
