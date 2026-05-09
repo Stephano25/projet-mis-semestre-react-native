@@ -1,7 +1,6 @@
 import { supabase } from '../supabase/client';
 
 export async function reorderQueueEntries(queueId: string) {
-  // Récupère toutes les entrées "waiting" triées par position
   const { data: entries } = await supabase
     .from('queue_entries')
     .select('id, position')
@@ -11,7 +10,6 @@ export async function reorderQueueEntries(queueId: string) {
 
   if (!entries) return;
 
-  // Met à jour les positions de manière séquentielle
   for (let i = 0; i < entries.length; i++) {
     const newPosition = i + 1;
     if (entries[i].position !== newPosition) {

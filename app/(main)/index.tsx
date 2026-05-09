@@ -4,6 +4,7 @@ import { supabase } from '../../src/supabase/client';
 import { Queue } from '../../src/types/database';
 import * as Location from 'expo-location';
 import { calculateDistance } from '../../src/utils/distance';
+import { router } from 'expo-router';
 
 const RADIUS_KM = 5;
 
@@ -45,13 +46,16 @@ export default function QueuesList() {
   }
 
   if (loading) return <ActivityIndicator size="large" />;
+
   return (
     <FlatList
       data={queues}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <View className="p-4 m-2 bg-white rounded-lg shadow">
-          <Text className="text-lg font-bold">{item.name}</Text>
+        <View
+          style={{ padding: 16, margin: 8, backgroundColor: 'white', borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
           <Text>Distance: {calculateDistance(location!.coords.latitude, location!.coords.longitude, item.latitude, item.longitude).toFixed(2)} km</Text>
         </View>
       )}

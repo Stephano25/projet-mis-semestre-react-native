@@ -2,7 +2,6 @@ import { supabase } from '../supabase/client';
 import { QueueEntry } from '../types/database';
 import { reorderQueueEntries } from './reordering';
 
-// Calculer la prochaine position pour une file
 export async function getNextPosition(queueId: string): Promise<number> {
   const { count } = await supabase
     .from('queue_entries')
@@ -12,7 +11,6 @@ export async function getNextPosition(queueId: string): Promise<number> {
   return (count ?? 0) + 1;
 }
 
-// Ajouter une entrée (invité ou auth)
 export async function addToQueue(
   queueId: string,
   userId: string | null,
@@ -38,29 +36,26 @@ export async function addToQueue(
   return data;
 }
 
-// Quitter volontairement
-export async function leaveQueue(entryId: string) {
+export async function leaveQueue(entryId: string, queueId: string) {
   await supabase.from('queue_entries').delete().eq('id', entryId);
-  // Le reorder se fera via un trigger ou une fonction séparée
   await reorderQueueEntries(queueId);
 }
 
-// Marquer comme servi (appelé par le gestionnaire)
-export async function markAsServed(entryId: string) {
+export async function markAsServed(entryId: string, queueId: string) {
   await supabase.from('queue_entries').update({ status: 'served' }).eq('id', entryId);
+  await reorderQueueEntries(queueId);
 }
 
-// Gérer un retard (appelé par déclencheur ou fonction edge, ici simple)
-export async function handleMissedTurn(entryId: string, currentMissed: number, currentPosition: number) {
+export async function handleMissedTurn(entryId: string, queueId: string, currentMissed: number, currentPosition: number) {
   const newMissed = currentMissed + 1;
   if (newMissed >= 3) {
     await supabase.from('queue_entries').update({ status: 'removed' }).eq('id', entryId);
   } else {
-    // reculer de 3 positions
     const newPosition = Math.max(1, currentPosition + 3);
     await supabase
       .from('queue_entries')
       .update({ missed_turns: newMissed, position: newPosition })
       .eq('id', entryId);
   }
+  await reorderQueueEntries(queueId);
 }

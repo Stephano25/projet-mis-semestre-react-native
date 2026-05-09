@@ -5,7 +5,7 @@ import { supabase } from '../src/supabase/client';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function RootLayout() {
-  const { session, user, isLoading, setSession, setUser, setIsLoading } = useAuthStore();
+  const { setSession, setUser, setIsLoading, isLoading } = useAuthStore();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

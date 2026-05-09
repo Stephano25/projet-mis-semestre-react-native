@@ -9,7 +9,6 @@ export function useQueueNotifications(entry: QueueEntry | null, queueId: string)
   useEffect(() => {
     if (!entry || entry.status !== 'waiting') return;
 
-    // Compter les personnes devant
     const fetchAhead = async () => {
       const { count } = await supabase
         .from('queue_entries')

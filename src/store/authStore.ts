@@ -8,6 +8,7 @@ interface AuthState {
   isLoading: boolean;
   setSession: (session: any) => void;
   setUser: (user: User | null) => void;
+  setIsLoading: (loading: boolean) => void;
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   setSession: (session) => set({ session }),
   setUser: (user) => set({ user }),
+  setIsLoading: (isLoading) => set({ isLoading }),
   signOut: async () => {
     await supabase.auth.signOut();
     set({ session: null, user: null });
