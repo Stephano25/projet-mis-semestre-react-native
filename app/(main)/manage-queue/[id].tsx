@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { supabase } from '../../../src/supabase/client';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { markAsServed, handleMissedTurn } from '../../../src/services/queueService';
 import { QueueEntry } from '../../../src/types/database';
 
@@ -9,21 +9,10 @@ export default function ManageQueue() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [waitingEntries, setWaitingEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const subscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     if (!id) return;
     fetchWaiting();
-
-    const channel = supabase.channel(`manage_${id}`);
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `queue_id=eq.${id}` }, () => {
-      fetchWaiting();
-    });
-    subscriptionRef.current = channel.subscribe();
-
-    return () => {
-      if (subscriptionRef.current) supabase.removeChannel(subscriptionRef.current);
-    };
   }, [id]);
 
   async function fetchWaiting() {
@@ -45,11 +34,13 @@ export default function ManageQueue() {
     const first = waitingEntries[0];
     await markAsServed(first.id, id);
     Alert.alert('Appelé', `${first.guest_name || first.user_id || 'Anonyme'} a été servi.`);
+    fetchWaiting();
   }
 
   async function markAbsent(entry: QueueEntry) {
     await handleMissedTurn(entry.id, id, entry.missed_turns, entry.position);
     Alert.alert('Absence', `Tour manqué (${entry.missed_turns + 1}/3).`);
+    fetchWaiting();
   }
 
   if (loading) return <ActivityIndicator size="large" color="#3b82f6" />;
