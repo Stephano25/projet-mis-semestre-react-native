@@ -7,6 +7,15 @@ import { ActivityIndicator, View } from 'react-native';
 export default function RootLayout() {
   const { setSession, setUser, setIsLoading, isLoading } = useAuthStore();
 
+  async function fetchUser(userId: string) {
+    const { data } = await supabase
+      .from('users')
+      .select('id, name, email, created_at')
+      .eq('id', userId)
+      .single();
+    if (data) setUser(data);
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -22,27 +31,23 @@ export default function RootLayout() {
         setUser(null);
       }
     });
+
     return () => listener?.subscription.unsubscribe();
   }, []);
-
-  async function fetchUser(userId: string) {
-    const { data } = await supabase.from('users').select('id, name, email').eq('id', userId).single();
-    if (data) setUser(data);
-  }
 
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(main)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="guest" options={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(main)" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="guest" />
     </Stack>
   );
 }

@@ -1,22 +1,29 @@
 import { supabase } from '../supabase/client';
 
-export async function reorderQueueEntries(queueId: string) {
-  const { data: entries } = await supabase
+/**
+ * Reorders all 'waiting' entries in a queue so positions are contiguous (1, 2, 3…).
+ * Called after any mutation (join, leave, serve, penalise).
+ */
+export async function reorderQueueEntries(queueId: string): Promise<void> {
+  const { data: entries, error } = await supabase
     .from('queue_entries')
     .select('id, position')
     .eq('queue_id', queueId)
     .eq('status', 'waiting')
     .order('position', { ascending: true });
 
-  if (!entries) return;
+  if (error || !entries) return;
 
-  for (let i = 0; i < entries.length; i++) {
-    const newPosition = i + 1;
-    if (entries[i].position !== newPosition) {
-      await supabase
-        .from('queue_entries')
-        .update({ position: newPosition })
-        .eq('id', entries[i].id);
-    }
-  }
+  const updates = entries
+    .map((e, i) => ({ id: e.id, newPosition: i + 1 }))
+    .filter(({ id, newPosition }) => {
+      const entry = entries.find((e) => e.id === id);
+      return entry && entry.position !== newPosition;
+    });
+
+  await Promise.all(
+    updates.map(({ id, newPosition }) =>
+      supabase.from('queue_entries').update({ position: newPosition }).eq('id', id)
+    )
+  );
 }
