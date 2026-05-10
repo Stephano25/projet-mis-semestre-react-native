@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../src/supabase/client';
 import { Queue } from '../../src/types/database';
@@ -11,9 +11,10 @@ const RADIUS_KM = 5;
 export default function QueuesList() {
   const [queues, setQueues] = useState<Queue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
-  // Permission GPS
   useEffect(() => {
     async function getLocation() {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -21,47 +22,43 @@ export default function QueuesList() {
         const loc = await Location.getCurrentPositionAsync({});
         setLocation(loc);
       } else {
+        setPermissionDenied(true);
         setLoading(false);
       }
     }
     getLocation();
   }, []);
 
-  // Chargement des files
-  useEffect(() => {
+  async function loadQueues() {
     if (!location) return;
-
-    async function loadQueues() {
-      const { data, error } = await supabase.from('queues').select('*');
-      if (!error && data) {
-        const filtered = data.filter((q: Queue) => {
-          const dist = calculateDistance(
-            location.coords.latitude,
-            location.coords.longitude,
-            q.latitude,
-            q.longitude
-          );
-          return dist <= RADIUS_KM;
-        });
-        setQueues(filtered);
-      }
-      setLoading(false);
+    
+    const { data, error } = await supabase.from('queues').select('*');
+    if (!error && data) {
+      const filtered = data.filter((q: Queue) => {
+        const dist = calculateDistance(
+          location.coords.latitude,
+          location.coords.longitude,
+          q.latitude,
+          q.longitude
+        );
+        return dist <= RADIUS_KM;
+      });
+      setQueues(filtered);
     }
+    setLoading(false);
+    setRefreshing(false);
+  }
 
-    loadQueues();
-
-    // Realtime sans erreur
-    const channel = supabase
-      .channel('queues-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
-        loadQueues();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+  useEffect(() => {
+    if (location) {
+      loadQueues();
+    }
   }, [location]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadQueues();
+  };
 
   if (loading) {
     return (
@@ -71,10 +68,29 @@ export default function QueuesList() {
     );
   }
 
+  if (permissionDenied) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 16, color: '#ef4444', textAlign: 'center' }}>
+          Permission GPS refusée
+        </Text>
+        <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 8 }}>
+          Activez la localisation pour voir les files à proximité
+        </Text>
+      </View>
+    );
+  }
+
   if (queues.length === 0) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ fontSize: 16, color: '#9ca3af' }}>Aucune file à proximité</Text>
+        <TouchableOpacity 
+          onPress={onRefresh} 
+          style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#3b82f6', borderRadius: 8 }}
+        >
+          <Text style={{ color: 'white', fontWeight: '600' }}>Actualiser</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -84,6 +100,9 @@ export default function QueuesList() {
       data={queues}
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ padding: 16 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />
+      }
       renderItem={({ item }) => (
         <TouchableOpacity
           onPress={() => router.push(`/queue/${item.id}`)}

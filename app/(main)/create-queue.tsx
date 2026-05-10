@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Button, Alert } from 'react-native';
+import { View, Text, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../../src/supabase/client';
 import { useAuthStore } from '../../src/store/authStore';
 import * as Location from 'expo-location';
@@ -13,7 +13,9 @@ export default function CreateQueue() {
   if (!user) {
     return (
       <View style={{ padding: 16 }}>
-        <Text>Vous devez être connecté pour créer une file.</Text>
+        <Text style={{ textAlign: 'center', color: '#ef4444' }}>
+          Vous devez être connecté pour créer une file.
+        </Text>
       </View>
     );
   }
@@ -52,18 +54,20 @@ export default function CreateQueue() {
 
   return (
     <View style={{ padding: 16 }}>
-      <Text style={{ fontSize: 20, marginBottom: 8 }}>Nouvelle file</Text>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Nouvelle file</Text>
       <TextInput
         placeholder="Nom de la file"
         value={name}
         onChangeText={setName}
-        style={{ borderWidth: 1, padding: 8, marginVertical: 8, borderRadius: 4 }}
+        style={{ borderWidth: 1, borderColor: '#e5e7eb', padding: 12, borderRadius: 8, marginBottom: 16 }}
       />
       <Button 
         title={loading ? 'Création...' : 'Créer'} 
         onPress={handleCreate} 
         disabled={loading} 
+        color="#3b82f6"
       />
+      {loading && <ActivityIndicator style={{ marginTop: 16 }} />}
     </View>
   );
 }

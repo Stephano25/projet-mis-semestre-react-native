@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
-import { View, Text, Button, Alert, TextInput } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Button, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { supabase } from '../../../src/supabase/client';
 import { QueueEntry } from '../../../src/types/database';
 import { useAuthStore } from '../../../src/store/authStore';
@@ -14,42 +14,23 @@ export default function QueueDetail() {
   const [queue, setQueue] = useState<any>(null);
   const [myEntry, setMyEntry] = useState<QueueEntry | null>(null);
   const [positionAhead, setPositionAhead] = useState(0);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
-  const entrySubscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     fetchQueue();
-    subscribeToEntries();
-    return () => {
-      if (entrySubscriptionRef.current) {
-        supabase.removeChannel(entrySubscriptionRef.current);
-      }
-    };
   }, [id]);
 
   useQueueNotifications(myEntry, id);
 
   async function fetchQueue() {
+    setLoading(true);
     const { data, error } = await supabase.from('queues').select('*').eq('id', id).single();
     if (error) console.error('Erreur chargement file :', error);
     else setQueue(data);
-  }
-
-  function subscribeToEntries() {
-    if (!id) return;
-    
-    if (entrySubscriptionRef.current) {
-      supabase.removeChannel(entrySubscriptionRef.current);
-    }
-    
-    const channel = supabase.channel(`queue_${id}`);
-    channel.on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'queue_entries', filter: `queue_id=eq.${id}` },
-      () => refreshMyEntry()
-    );
-    entrySubscriptionRef.current = channel.subscribe();
+    setLoading(false);
   }
 
   async function refreshMyEntry() {
@@ -110,6 +91,9 @@ export default function QueueDetail() {
     try {
       const entry = await addToQueue(id, userId, name, email);
       setMyEntry(entry);
+      // Rafraîchir périodiquement la position
+      const interval = setInterval(refreshMyEntry, 3000);
+      return () => clearInterval(interval);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de rejoindre la file');
     }
@@ -125,40 +109,59 @@ export default function QueueDetail() {
     }
   }
 
-  if (!queue) return <Text>Chargement...</Text>;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  if (!queue) return <Text style={{ padding: 16 }}>File introuvable</Text>;
 
   if (!myEntry) {
     return (
       <View style={{ padding: 16 }}>
-        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{queue.name}</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>{queue.name}</Text>
         {!user && (
           <>
             <TextInput
               placeholder="Nom"
               value={guestName}
               onChangeText={setGuestName}
-              style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+              style={{ borderWidth: 1, borderColor: '#e5e7eb', padding: 12, marginVertical: 8, borderRadius: 8 }}
             />
             <TextInput
               placeholder="Email"
               value={guestEmail}
               onChangeText={setGuestEmail}
               autoCapitalize="none"
-              style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+              style={{ borderWidth: 1, borderColor: '#e5e7eb', padding: 12, marginVertical: 8, borderRadius: 8 }}
             />
           </>
         )}
-        <Button title="Rejoindre la file" onPress={handleJoin} />
+        <Button title="Rejoindre la file" onPress={handleJoin} color="#3b82f6" />
       </View>
     );
   }
 
   return (
     <View style={{ padding: 16 }}>
-      <Text style={{ fontSize: 18 }}>Votre position : {myEntry.position}</Text>
-      <Text>Personnes devant : {positionAhead}</Text>
-      <Text>Tours manqués : {myEntry.missed_turns}</Text>
-      <Button title="Quitter la file" onPress={handleLeave} color="red" />
+      <View style={{ backgroundColor: '#f3f4f6', padding: 16, borderRadius: 12, marginBottom: 16 }}>
+        <Text style={{ fontSize: 14, color: '#6b7280' }}>Votre position</Text>
+        <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1f2937' }}>{myEntry.position}</Text>
+      </View>
+      <View style={{ backgroundColor: '#f3f4f6', padding: 16, borderRadius: 12, marginBottom: 16 }}>
+        <Text style={{ fontSize: 14, color: '#6b7280' }}>Personnes devant vous</Text>
+        <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1f2937' }}>{positionAhead}</Text>
+      </View>
+      <View style={{ backgroundColor: '#f3f4f6', padding: 16, borderRadius: 12, marginBottom: 24 }}>
+        <Text style={{ fontSize: 14, color: '#6b7280' }}>Tours manqués</Text>
+        <Text style={{ fontSize: 32, fontWeight: 'bold', color: positionAhead >= 3 ? '#ef4444' : '#1f2937' }}>
+          {myEntry.missed_turns} / 3
+        </Text>
+      </View>
+      <Button title="Quitter la file" onPress={handleLeave} color="#ef4444" />
     </View>
   );
 }
