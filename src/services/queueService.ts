@@ -2,7 +2,6 @@ import { supabase } from '../supabase/client';
 import { QueueEntry } from '../types/database';
 import { reorderQueueEntries } from './reordering';
 
-/** Returns the next available position for a given queue. */
 export async function getNextPosition(queueId: string): Promise<number> {
   const { count } = await supabase
     .from('queue_entries')
@@ -12,7 +11,6 @@ export async function getNextPosition(queueId: string): Promise<number> {
   return (count ?? 0) + 1;
 }
 
-/** Adds a user (authenticated or guest) to a queue. */
 export async function addToQueue(
   queueId: string,
   userId: string | null,
@@ -38,24 +36,16 @@ export async function addToQueue(
   return data as QueueEntry;
 }
 
-/** Removes a user from a queue and reorders. */
 export async function leaveQueue(entryId: string, queueId: string): Promise<void> {
   await supabase.from('queue_entries').delete().eq('id', entryId);
   await reorderQueueEntries(queueId);
 }
 
-/** Marks an entry as served and reorders. */
 export async function markAsServed(entryId: string, queueId: string): Promise<void> {
   await supabase.from('queue_entries').update({ status: 'served' }).eq('id', entryId);
   await reorderQueueEntries(queueId);
 }
 
-/**
- * Penalises a user who missed their turn:
- *  – increments missed_turns
- *  – pushes them back 3 positions
- *  – removes them after 3 misses
- */
 export async function handleMissedTurn(
   entryId: string,
   queueId: string,
@@ -70,13 +60,11 @@ export async function handleMissedTurn(
       .update({ status: 'removed', missed_turns: newMissed })
       .eq('id', entryId);
   } else {
-    // Count how many waiting entries exist so we don't exceed max position
     const { count } = await supabase
       .from('queue_entries')
       .select('*', { count: 'exact', head: true })
       .eq('queue_id', queueId)
       .eq('status', 'waiting');
-
     const maxPosition = count ?? currentPosition;
     const newPosition = Math.min(currentPosition + 3, maxPosition);
 

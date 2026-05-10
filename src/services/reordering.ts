@@ -1,9 +1,5 @@
 import { supabase } from '../supabase/client';
 
-/**
- * Reorders all 'waiting' entries in a queue so positions are contiguous (1, 2, 3…).
- * Called after any mutation (join, leave, serve, penalise).
- */
 export async function reorderQueueEntries(queueId: string): Promise<void> {
   const { data: entries, error } = await supabase
     .from('queue_entries')

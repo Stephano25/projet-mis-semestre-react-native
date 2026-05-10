@@ -3,16 +3,7 @@ import { Alert } from 'react-native';
 import { supabase } from '../supabase/client';
 import { QueueEntry } from '../types/database';
 
-/**
- * Polls every 5 s to check how many people are ahead of the user.
- * Fires an in-app alert when ≤ 3 remain and again when it is their turn.
- * Uses a ref to avoid re-triggering the same notification.
- */
-export function useQueueNotifications(
-  entry: QueueEntry | null,
-  queueId: string | undefined
-): void {
-  // 0 = no notification sent, 1 = "almost your turn", 2 = "your turn"
+export function useQueueNotifications(entry: QueueEntry | null, queueId: string | undefined): void {
   const lastNotifiedRef = useRef<0 | 1 | 2>(0);
 
   useEffect(() => {

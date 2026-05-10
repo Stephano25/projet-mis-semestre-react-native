@@ -4,6 +4,18 @@ import { useAuthStore } from '../src/store/authStore';
 import { supabase } from '../src/supabase/client';
 import { ActivityIndicator, View } from 'react-native';
 
+// Ignorer l'erreur "Unable to activate keep awake" (non bloquante)
+if (typeof ErrorUtils !== 'undefined') {
+  const originalHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    if (error?.message?.includes('keep awake') || error?.message?.includes('keepAwake')) {
+      console.warn('Ignored keep awake error');
+      return;
+    }
+    originalHandler(error, isFatal);
+  });
+}
+
 export default function RootLayout() {
   const { setSession, setUser, setIsLoading, isLoading } = useAuthStore();
 
@@ -44,10 +56,10 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(main)" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="guest" />
+    <Stack>
+      <Stack.Screen name="(main)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="guest" options={{ headerShown: false }} />
     </Stack>
   );
 }

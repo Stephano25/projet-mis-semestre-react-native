@@ -94,9 +94,7 @@ export default function Login() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.replace('/(main)')} style={{ marginTop: 12 }}>
-          <Text style={{ color: '#6b7280', textAlign: 'center' }}>
-            Continuer en invité
-          </Text>
+          <Text style={{ color: '#6b7280', textAlign: 'center' }}>Continuer en invité</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

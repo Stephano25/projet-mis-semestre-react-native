@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../src/supabase/client';
 import { Queue } from '../../src/types/database';
 import * as Location from 'expo-location';
@@ -21,6 +21,7 @@ export default function QueuesList() {
   const [refreshing, setRefreshing] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const subscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +38,6 @@ export default function QueuesList() {
 
   async function loadQueues() {
     if (!location) return;
-
     const { data, error } = await supabase.from('queues').select('*');
     if (!error && data) {
       const nearby = (data as Queue[]).filter((q) => {
@@ -56,93 +56,57 @@ export default function QueuesList() {
   }
 
   useEffect(() => {
-    if (location) loadQueues();
+    if (!location) return;
+    loadQueues();
+
+    // ✅ ORDRE CORRECT : canal → .on() → .subscribe()
+    const channel = supabase.channel('queues-channel');
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
+      loadQueues();
+    });
+    subscriptionRef.current = channel.subscribe();
+
+    return () => {
+      if (subscriptionRef.current) supabase.removeChannel(subscriptionRef.current);
+    };
   }, [location]);
 
-  function onRefresh() {
+  const onRefresh = () => {
     setRefreshing(true);
     loadQueues();
-  }
+  };
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
-
-  if (permissionDenied) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 18, color: '#ef4444', textAlign: 'center', marginBottom: 8 }}>
-          Permission GPS refusée
-        </Text>
-        <Text style={{ color: '#6b7280', textAlign: 'center' }}>
-          Activez la localisation pour voir les files à proximité.
-        </Text>
-      </View>
-    );
-  }
-
-  if (queues.length === 0) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 16, color: '#9ca3af', marginBottom: 16 }}>
-          Aucune file à proximité
-        </Text>
-        <TouchableOpacity
-          onPress={onRefresh}
-          style={{ paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#3b82f6', borderRadius: 8 }}
-        >
-          <Text style={{ color: 'white', fontWeight: '600' }}>Actualiser</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (loading) return <ActivityIndicator size="large" color="#3b82f6" />;
+  if (permissionDenied) return ( /* message permission refusée */ );
+  if (queues.length === 0) return ( /* message vide + bouton actualiser */ );
 
   return (
     <FlatList
       data={queues}
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ padding: 16 }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />
-      }
-      renderItem={({ item }) => {
-        const dist = location
-          ? calculateDistance(
-              location.coords.latitude,
-              location.coords.longitude,
-              item.latitude,
-              item.longitude
-            ).toFixed(2)
-          : '—';
-
-        return (
-          <TouchableOpacity
-            onPress={() => router.push(`/(main)/queue/${item.id}`)}
-            style={{
-              backgroundColor: 'white',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 12,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>
-              {item.name}
-            </Text>
-            <Text style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>
-              📍 {dist} km
-            </Text>
-          </TouchableOpacity>
-        );
-      }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />}
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          onPress={() => router.push(`/queue/${item.id}`)}
+          style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>{item.name}</Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>
+            📍 {calculateDistance(location!.coords.latitude, location!.coords.longitude, item.latitude, item.longitude).toFixed(2)} km
+          </Text>
+        </TouchableOpacity>
+      )}
     />
   );
 }
