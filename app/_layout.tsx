@@ -26,7 +26,7 @@ export default function RootLayout() {
   }, []);
 
   async function fetchUser(userId: string) {
-    const { data } = await supabase.from('users').select('*').eq('id', userId).single();
+    const { data } = await supabase.from('users').select('id, name, email').eq('id', userId).single();
     if (data) setUser(data);
   }
 
@@ -42,7 +42,7 @@ export default function RootLayout() {
     <Stack>
       <Stack.Screen name="(main)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="guest/join" options={{ title: 'Rejoindre en invité' }} />
+      <Stack.Screen name="guest" options={{ headerShown: false }} />
     </Stack>
   );
 }

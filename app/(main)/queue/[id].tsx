@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, Text, Button, Alert, TextInput } from 'react-native';
 import { supabase } from '../../../src/supabase/client';
 import { QueueEntry } from '../../../src/types/database';
@@ -17,59 +17,72 @@ export default function QueueDetail() {
   const { user } = useAuthStore();
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
+  const entrySubscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     fetchQueue();
     subscribeToEntries();
+    return () => {
+      if (entrySubscriptionRef.current) {
+        supabase.removeChannel(entrySubscriptionRef.current);
+      }
+    };
   }, [id]);
 
   useQueueNotifications(myEntry, id);
 
   async function fetchQueue() {
-    const { data } = await supabase.from('queues').select('*').eq('id', id).single();
-    setQueue(data);
+    const { data, error } = await supabase.from('queues').select('*').eq('id', id).single();
+    if (error) console.error('Erreur chargement file :', error);
+    else setQueue(data);
   }
 
   function subscribeToEntries() {
-    const subscription = supabase
-      .channel(`queue_${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `queue_id=eq.${id}` }, () => {
-        refreshMyEntry();
-      })
-      .subscribe();
-    return () => subscription.unsubscribe();
+    if (!id) return;
+    
+    if (entrySubscriptionRef.current) {
+      supabase.removeChannel(entrySubscriptionRef.current);
+    }
+    
+    const channel = supabase.channel(`queue_${id}`);
+    channel.on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'queue_entries', filter: `queue_id=eq.${id}` },
+      () => refreshMyEntry()
+    );
+    entrySubscriptionRef.current = channel.subscribe();
   }
 
   async function refreshMyEntry() {
     if (!myEntry) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('queue_entries')
       .select('*')
       .eq('id', myEntry.id)
       .single();
-    if (data) {
-      setMyEntry(data);
-      const { count } = await supabase
-        .from('queue_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('queue_id', id)
-        .eq('status', 'waiting')
-        .lt('position', data.position);
-      setPositionAhead(count || 0);
-      if (data.status === 'served') {
-        Alert.alert('Vous avez été servi !');
-        router.back();
-      } else if (data.status === 'removed') {
-        Alert.alert('Vous avez été exclu après 3 absences');
-        router.back();
-      }
+    if (error) return;
+
+    setMyEntry(data);
+    const { count } = await supabase
+      .from('queue_entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('queue_id', id)
+      .eq('status', 'waiting')
+      .lt('position', data.position);
+    setPositionAhead(count || 0);
+
+    if (data.status === 'served') {
+      Alert.alert('Vous avez été servi !');
+      router.back();
+    } else if (data.status === 'removed') {
+      Alert.alert('Vous avez été exclu après 3 absences');
+      router.back();
     }
   }
 
   async function checkProximity() {
     if (!queue) return;
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') throw new Error('Permission refusée');
+    if (status !== 'granted') throw new Error('Permission de localisation refusée');
     const loc = await Location.getCurrentPositionAsync({});
     const dist = calculateDistance(loc.coords.latitude, loc.coords.longitude, queue.latitude, queue.longitude);
     if (dist > 5) {
@@ -84,21 +97,32 @@ export default function QueueDetail() {
     try {
       await checkProximity();
     } catch(e) { return; }
+
     const userId = user?.id || null;
     let name = userId ? user?.name : guestName;
     let email = userId ? user?.email : guestEmail;
+
     if (!userId && (!name || !email)) {
       Alert.alert('Erreur', 'Veuillez entrer votre nom et email');
       return;
     }
-    const entry = await addToQueue(id, userId, name, email);
-    setMyEntry(entry);
+
+    try {
+      const entry = await addToQueue(id, userId, name, email);
+      setMyEntry(entry);
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de rejoindre la file');
+    }
   }
 
   async function handleLeave() {
     if (!myEntry) return;
-    await leaveQueue(myEntry.id, id);
-    router.back();
+    try {
+      await leaveQueue(myEntry.id, id);
+      router.back();
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de quitter la file');
+    }
   }
 
   if (!queue) return <Text>Chargement...</Text>;

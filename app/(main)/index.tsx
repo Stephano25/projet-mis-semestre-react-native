@@ -13,51 +13,103 @@ export default function QueuesList() {
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
 
+  // Permission GPS
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc);
-    })();
+    async function getLocation() {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({});
+        setLocation(loc);
+      } else {
+        setLoading(false);
+      }
+    }
+    getLocation();
   }, []);
 
+  // Chargement des files
   useEffect(() => {
     if (!location) return;
-    fetchQueues();
-    const subscription = supabase
-      .channel('queues')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => fetchQueues())
+
+    async function loadQueues() {
+      const { data, error } = await supabase.from('queues').select('*');
+      if (!error && data) {
+        const filtered = data.filter((q: Queue) => {
+          const dist = calculateDistance(
+            location.coords.latitude,
+            location.coords.longitude,
+            q.latitude,
+            q.longitude
+          );
+          return dist <= RADIUS_KM;
+        });
+        setQueues(filtered);
+      }
+      setLoading(false);
+    }
+
+    loadQueues();
+
+    // Realtime sans erreur
+    const channel = supabase
+      .channel('queues-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
+        loadQueues();
+      })
       .subscribe();
-    return () => { subscription.unsubscribe(); };
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [location]);
 
-  async function fetchQueues() {
-    const { data, error } = await supabase.from('queues').select('*');
-    if (error) console.error(error);
-    else {
-      const filtered = (data as Queue[]).filter(q => {
-        const dist = calculateDistance(location!.coords.latitude, location!.coords.longitude, q.latitude, q.longitude);
-        return dist <= RADIUS_KM;
-      });
-      setQueues(filtered);
-    }
-    setLoading(false);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
   }
 
-  if (loading) return <ActivityIndicator size="large" />;
+  if (queues.length === 0) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontSize: 16, color: '#9ca3af' }}>Aucune file à proximité</Text>
+      </View>
+    );
+  }
 
   return (
     <FlatList
       data={queues}
       keyExtractor={(item) => item.id}
+      contentContainerStyle={{ padding: 16 }}
       renderItem={({ item }) => (
         <TouchableOpacity
           onPress={() => router.push(`/queue/${item.id}`)}
-          style={{ padding: 16, margin: 8, backgroundColor: 'white', borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}
+          style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
         >
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-          <Text>Distance: {calculateDistance(location!.coords.latitude, location!.coords.longitude, item.latitude, item.longitude).toFixed(2)} km</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>
+            {item.name}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>
+            📍 Distance: {calculateDistance(
+              location!.coords.latitude,
+              location!.coords.longitude,
+              item.latitude,
+              item.longitude
+            ).toFixed(2)} km
+          </Text>
         </TouchableOpacity>
       )}
     />

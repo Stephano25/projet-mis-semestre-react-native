@@ -44,7 +44,7 @@ export default function Signup() {
         secureTextEntry
         style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
       />
-      <Button title={loading ? 'Inscription...' : 'S’inscrire'} onPress={handleSignup} disabled={loading} />
+      <Button title={loading ? 'Inscription...' : "S'inscrire"} onPress={handleSignup} disabled={loading} />
     </View>
   );
 }
