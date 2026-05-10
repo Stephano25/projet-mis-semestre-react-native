@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../src/supabase/client';
 import { Queue } from '../../src/types/database';
@@ -52,12 +52,13 @@ export default function QueuesList() {
       data={queues}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <View
+        <TouchableOpacity
+          onPress={() => router.push(`/queue/${item.id}`)}
           style={{ padding: 16, margin: 8, backgroundColor: 'white', borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}
         >
           <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
           <Text>Distance: {calculateDistance(location!.coords.latitude, location!.coords.longitude, item.latitude, item.longitude).toFixed(2)} km</Text>
-        </View>
+        </TouchableOpacity>
       )}
     />
   );

@@ -39,9 +39,14 @@ export default function CreateQueue() {
   }
 
   return (
-    <View className="p-4">
-      <Text className="text-xl">Nouvelle file</Text>
-      <TextInput placeholder="Nom de la file" value={name} onChangeText={setName} className="border p-2 my-2" />
+    <View style={{ padding: 16 }}>
+      <Text style={{ fontSize: 20 }}>Nouvelle file</Text>
+      <TextInput
+        placeholder="Nom de la file"
+        value={name}
+        onChangeText={setName}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 8, borderRadius: 4 }}
+      />
       <Button title={loading ? 'Création...' : 'Créer'} onPress={handleCreate} disabled={loading} />
     </View>
   );

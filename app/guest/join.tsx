@@ -23,10 +23,21 @@ export default function GuestJoin() {
   }
 
   return (
-    <View className="p-4">
-      <Text className="text-xl mb-4">Rejoindre en tant qu’invité</Text>
-      <TextInput placeholder="Nom" value={name} onChangeText={setName} className="border p-2 my-1 rounded" />
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} className="border p-2 my-1 rounded" autoCapitalize="none" />
+    <View style={{ padding: 16 }}>
+      <Text style={{ fontSize: 20, marginBottom: 16 }}>Rejoindre en tant qu’invité</Text>
+      <TextInput
+        placeholder="Nom"
+        value={name}
+        onChangeText={setName}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+      />
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+        autoCapitalize="none"
+      />
       <Button title="Rejoindre" onPress={handleJoin} />
     </View>
   );

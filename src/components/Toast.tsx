@@ -24,7 +24,7 @@ export default function Toast({ message, visible, onHide }: { message: string; v
   if (!visible) return null;
   return (
     <Animated.View style={{ opacity, position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: 'black', padding: 10, borderRadius: 8 }}>
-      <Text className="text-white">{message}</Text>
+      <Text style={{ color: 'white' }}>{message}</Text>
     </Animated.View>
   );
 }

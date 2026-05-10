@@ -14,17 +14,17 @@ export default function MainLayout() {
           title: 'Files à proximité',
           headerRight: () => (
             <TouchableOpacity onPress={() => router.push('/create-queue')}>
-              <Text className="text-blue-500 mr-4">Créer</Text>
+              <Text style={{ color: '#3b82f6', marginRight: 16 }}>Créer</Text>
             </TouchableOpacity>
           ),
           headerLeft: () => (
             user ? (
               <TouchableOpacity onPress={signOut}>
-                <Text className="text-red-500 ml-4">Déconnexion</Text>
+                <Text style={{ color: '#ef4444', marginLeft: 16 }}>Déconnexion</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={() => router.push('/login')}>
-                <Text className="text-blue-500 ml-4">Connexion</Text>
+                <Text style={{ color: '#3b82f6', marginLeft: 16 }}>Connexion</Text>
               </TouchableOpacity>
             )
           ),

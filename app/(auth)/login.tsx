@@ -17,16 +17,28 @@ export default function Login() {
   }
 
   return (
-    <View className="p-4 flex-1 justify-center">
-      <Text className="text-2xl font-bold mb-6">Connexion</Text>
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} className="border p-2 my-1 rounded" autoCapitalize="none" />
-      <TextInput placeholder="Mot de passe" value={password} onChangeText={setPassword} secureTextEntry className="border p-2 my-1 rounded" />
+    <View style={{ padding: 16, flex: 1, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 24 }}>Connexion</Text>
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Mot de passe"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+      />
       <Button title={loading ? 'Connexion...' : 'Se connecter'} onPress={handleLogin} disabled={loading} />
-      <TouchableOpacity onPress={() => router.push('/signup')} className="mt-4">
-        <Text className="text-blue-500 text-center">Pas encore de compte ? Inscrivez-vous</Text>
+      <TouchableOpacity onPress={() => router.push('/signup')} style={{ marginTop: 16 }}>
+        <Text style={{ color: '#3b82f6', textAlign: 'center' }}>Pas encore de compte ? Inscrivez-vous</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.push('/guest/join')} className="mt-2">
-        <Text className="text-gray-500 text-center">Continuer en invité</Text>
+      <TouchableOpacity onPress={() => router.push('/guest/join')} style={{ marginTop: 8 }}>
+        <Text style={{ color: '#6b7280', textAlign: 'center' }}>Continuer en invité</Text>
       </TouchableOpacity>
     </View>
   );

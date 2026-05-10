@@ -14,7 +14,6 @@ export default function Signup() {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) Alert.alert('Erreur', error.message);
     else if (data.user) {
-      // Créer l'entrée dans la table users
       await supabase.from('users').insert({ id: data.user.id, name, email });
       Alert.alert('Succès', 'Compte créé, vous pouvez vous connecter');
       router.push('/login');
@@ -23,11 +22,28 @@ export default function Signup() {
   }
 
   return (
-    <View className="p-4 flex-1 justify-center">
-      <Text className="text-2xl font-bold mb-6">Inscription</Text>
-      <TextInput placeholder="Nom" value={name} onChangeText={setName} className="border p-2 my-1 rounded" />
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} className="border p-2 my-1 rounded" autoCapitalize="none" />
-      <TextInput placeholder="Mot de passe" value={password} onChangeText={setPassword} secureTextEntry className="border p-2 my-1 rounded" />
+    <View style={{ padding: 16, flex: 1, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 24 }}>Inscription</Text>
+      <TextInput
+        placeholder="Nom"
+        value={name}
+        onChangeText={setName}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+      />
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Mot de passe"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+      />
       <Button title={loading ? 'Inscription...' : 'S’inscrire'} onPress={handleSignup} disabled={loading} />
     </View>
   );

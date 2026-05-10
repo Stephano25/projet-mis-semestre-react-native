@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Button, Alert, TextInput } from 'react-native';
 import { supabase } from '../../../src/supabase/client';
 import { QueueEntry } from '../../../src/types/database';
 import { useAuthStore } from '../../../src/store/authStore';
@@ -21,9 +21,10 @@ export default function QueueDetail() {
   useEffect(() => {
     fetchQueue();
     subscribeToEntries();
-    checkProximity();
   }, [id]);
+
   useQueueNotifications(myEntry, id);
+
   async function fetchQueue() {
     const { data } = await supabase.from('queues').select('*').eq('id', id).single();
     setQueue(data);
@@ -43,12 +44,11 @@ export default function QueueDetail() {
     if (!myEntry) return;
     const { data } = await supabase
       .from('queue_entries')
-      .select('*, queue_id')
+      .select('*')
       .eq('id', myEntry.id)
       .single();
     if (data) {
       setMyEntry(data);
-      // compter les waiting avant cette position
       const { count } = await supabase
         .from('queue_entries')
         .select('*', { count: 'exact', head: true })
@@ -62,15 +62,12 @@ export default function QueueDetail() {
       } else if (data.status === 'removed') {
         Alert.alert('Vous avez été exclu après 3 absences');
         router.back();
-      } else if (positionAhead <= 3 && positionAhead > 0) {
-        Alert.alert('Notification', 'Votre tour approche !');
-      } else if (positionAhead === 0 && data.status === 'waiting') {
-        Alert.alert('C’est à vous ! Présentez-vous au guichet.');
       }
     }
   }
 
   async function checkProximity() {
+    if (!queue) return;
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') throw new Error('Permission refusée');
     const loc = await Location.getCurrentPositionAsync({});
@@ -78,14 +75,18 @@ export default function QueueDetail() {
     if (dist > 5) {
       Alert.alert('Hors zone', 'Vous devez être à moins de 5 km pour rejoindre cette file.');
       router.back();
+      throw new Error('Hors zone');
     }
   }
 
   async function handleJoin() {
     if (!queue) return;
+    try {
+      await checkProximity();
+    } catch(e) { return; }
     const userId = user?.id || null;
-    let name = userId ? user.name : guestName;
-    let email = userId ? user.email : guestEmail;
+    let name = userId ? user?.name : guestName;
+    let email = userId ? user?.email : guestEmail;
     if (!userId && (!name || !email)) {
       Alert.alert('Erreur', 'Veuillez entrer votre nom et email');
       return;
@@ -96,21 +97,31 @@ export default function QueueDetail() {
 
   async function handleLeave() {
     if (!myEntry) return;
-    await leaveQueue(myEntry.id);
+    await leaveQueue(myEntry.id, id);
     router.back();
   }
 
   if (!queue) return <Text>Chargement...</Text>;
 
   if (!myEntry) {
-    // Formulaire d'inscription
     return (
-      <View className="p-4">
-        <Text className="text-xl font-bold">{queue.name}</Text>
+      <View style={{ padding: 16 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{queue.name}</Text>
         {!user && (
           <>
-            <TextInput placeholder="Nom" value={guestName} onChangeText={setGuestName} className="border p-2 my-1" />
-            <TextInput placeholder="Email" value={guestEmail} onChangeText={setGuestEmail} className="border p-2 my-1" />
+            <TextInput
+              placeholder="Nom"
+              value={guestName}
+              onChangeText={setGuestName}
+              style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+            />
+            <TextInput
+              placeholder="Email"
+              value={guestEmail}
+              onChangeText={setGuestEmail}
+              autoCapitalize="none"
+              style={{ borderWidth: 1, padding: 8, marginVertical: 4, borderRadius: 4 }}
+            />
           </>
         )}
         <Button title="Rejoindre la file" onPress={handleJoin} />
@@ -119,8 +130,8 @@ export default function QueueDetail() {
   }
 
   return (
-    <View className="p-4">
-      <Text className="text-lg">Votre position : {myEntry.position}</Text>
+    <View style={{ padding: 16 }}>
+      <Text style={{ fontSize: 18 }}>Votre position : {myEntry.position}</Text>
       <Text>Personnes devant : {positionAhead}</Text>
       <Text>Tours manqués : {myEntry.missed_turns}</Text>
       <Button title="Quitter la file" onPress={handleLeave} color="red" />
